@@ -1,0 +1,139 @@
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+#____________________________________________________________________________________________________________________
+#
+#
+	# HER KAN DU ÆNDRE PÅ TEMPERATUREN - TALLET EFTER "EQUAL"
+	variable temp    equal 1
+
+	# HER KAN DU ÆNDRE PÅ KRAFTEN - TALLET EFTER "EQUAL"
+	variable fx    equal 1
+#
+#____________________________________________________________________________________________________________________
+#
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+#temperature kB T  in energy units
+variable kT      equal 1*${temp}
+variable avgb2   equal 1                    # <b^2>
+variable kspring equal 3*${kT}/${avgb2}     # required by given <b^2>
+variable mass    equal 1
+
+variable input  string "pull_polymers_100chains_30bonds.input"
+variable output string "kraft_data.txt"
+variable xoutp1  string "avg_x_ends_time1.t"
+variable xoutp2  string "kraft_data.txt"
+variable movie  string "moviefx0.1.avi"
+
+
+#Langevin dynamics, friction is reduced compared to rouse simulation to accelerate dynamics.
+variable friction equal 0.1
+variable tdamp equal ${mass}/${friction}
+
+#Simulation
+variable timestep equal 0.002
+variable nrun     equal 100000
+
+#random seeds
+variable rnd1 equal 39523052
+variable rnd2 equal 74574562
+
+
+dimension 3
+units		lj
+atom_style	molecular
+boundary        p p p
+thermo 100
+
+
+#neighbor settings
+neighbor 1.00 bin
+neigh_modify every 1 delay 0 check yes   page 1000000 one 100000
+
+#read input conformation
+read_data ${input}
+
+group mobile type 2 3
+group ends   type 3
+fix addf ends addforce ${fx} 0 0
+
+mass * ${mass}
+velocity all create ${temp} ${rnd1}
+
+#we need pair information up to this distance
+pair_style zero 5
+pair_coeff * *
+
+#lammps harmonic bonds U(r) = k (r-l0)^2  which does not include the factor of 1/2 for usual harmonic potentials.
+bond_style harmonic
+variable klammps equal ${kspring}/2
+bond_coeff  * ${klammps} 0
+
+#Langevin dynamics
+fix  dynamics   mobile  langevin ${temp} ${temp} ${tdamp} ${rnd2} gjf vfull
+fix  integrator mobile  nve
+
+#make movie:
+
+group vis molecule < 20
+variable color atom mol
+variable        colors string &
+                "red green blue yellow aquamarine crimson azure black darkcyan darkmagenta &
+                 darkolivegreen darkorange darkviolet darksalmon darkmagenta purple pink orange lime gray &
+                 fuchsia coral cyan "
+
+dump        video vis  movie  100 ${movie}  v_color v_color adiam 0.9 zoom 1.6 view 30 250 size 768 512
+dump_modify video backcolor white  boxcolor black
+dump_modify video amap 1 20 sa 1 23 ${colors}
+
+shell "mkdir img"
+shell "rm img/*"
+
+dump        image vis  image  20000 img/t*.jpg   v_color v_color adiam 0.9 zoom 2.9 view 0 270  size 768 512
+dump_modify image backcolor white  boxcolor black
+dump_modify image amap 1 20 sa 1 23 ${colors}
+dump_modify image pad 6
+
+# Sample  <X> averaged over ends only.
+
+compute xpos ends property/atom xu
+compute axpos ends reduce ave c_xpos
+variable energy    equal etotal
+compute bdist all bond/local dist
+compute b2avg all reduce avesq c_bdist
+
+fix out ends ave/time 1000 1 1000 c_b2avg  v_energy c_axpos start 20000 file ${output} title1 "Tidsskridt <b^2> Energi <X>"
+thermo_style    custom step temp etotal   c_axpos
+
+
+timestep ${timestep}
+
+run ${nrun}
+

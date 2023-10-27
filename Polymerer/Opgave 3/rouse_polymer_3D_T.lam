@@ -1,0 +1,143 @@
+
+
+
+
+
+
+
+
+
+##
+##----------------------------------------------------------------------------------------------------------------------------
+##
+
+	# HER SKAL DU ÆNDRE TEMPERATUREN - tallet efter "equal"
+
+	variable T_real    equal T
+
+##
+##----------------------------------------------------------------------------------------------------------------------------
+##
+
+
+
+
+
+
+
+variable T_ref	   equal 1
+variable kT        equal 1*${T_real}      			# Temperature kBT in energy units
+variable Nspring   equal 20					# Number of springs in the chain
+variable input     string "rouse_polymers_1000chains_20bonds.input"	# Inputfile
+
+# Derive 2D spring constant 
+
+variable bond2     equal 1                         		# <b^2>
+variable kspring   equal (3*${kT})/(${T_ref}*${bond2})  	# dimension*kT/<b^2>
+
+# Langevin dynamics
+
+variable mass   equal 1                         		# The mass, m             
+variable friction equal 1			 		# The friction, zeta
+variable tdamp equal ${mass}/${friction}         		# this is needed by LAMMPS
+
+# Timescales 
+
+variable period    equal 2*3.1415*sqrt(${kspring}/${mass})                            # harmonic oscillator w = sqrt(k/m)
+variable taubond   equal ${friction}*${bond2}/${kT}*1/(3*3.1415*3.1415)		      # Kuhn time
+variable tauchain  equal ${taubond}*${Nspring}^2				      # Rouse time
+
+print "tau bond = ${taubond}"              # this the fundamental clock of diffusive motion, the time it takes a bond to move its own size
+print "tau chain= ${tauchain}"             # time scale where a chain has moved its own size, and polymer is in a new conformation
+print "T= ${period}"                       # time scale of harmonic oscillation (relevant for timestep)
+print "Friction time scale = ${tdamp}"     # time scale for cross-over from ballistic to diffusive dynamics.
+
+# Simulation
+
+variable timestep equal 0.002					# Timestep of simulation, each timestep we find new position for beads
+variable nrun     equal 100000					# Number of timesteps system will run
+
+# Random seeds
+
+variable rnd1 equal 39529057
+variable rnd2 equal 74575567
+
+# Clean up potential old data from previous runs 
+shell "rm *.jpg *.avi *.t log.lammps"
+
+thermo 100					# How often thermodynamic info should be computed and printed
+
+
+dimension 3					# System dimension
+units		lj				# Lennard-Jones units
+atom_style	molecular			
+boundary        p p p				# Periodic boundaries
+
+# Neighbor settings
+neighbor 1.00 bin
+neigh_modify every 1 delay 0 check yes 
+
+# Read in initial configuration
+read_data ${input}
+
+# Setup mass and generate a random velocity from a Maxwell-Boltzmann distribution.
+mass * ${mass}
+velocity all create ${T_ref} ${rnd1}
+
+# We need pair information up to this distance for calculating bonds
+pair_style zero 5
+pair_coeff * *
+
+# LAMMPS harmonic bonds U(r) = k (r-l0)^2  which does not include the factor of 1/2 for usual harmonic potentials.
+bond_style harmonic
+variable klammps equal ${kspring}/2
+bond_coeff  * ${klammps} 0
+
+# Set up dynamics
+fix dynamics all langevin ${T_ref} ${T_ref} ${tdamp} ${rnd2}  gjf vfull
+fix  integrator  all nve
+
+# Visualize but only first 20 molecules for video amd images
+group vis molecule < 20
+
+variable color atom mol
+variable        colors string &
+                "red green blue yellow aquamarine crimson azure black darkcyan darkmagenta &
+                 darkolivegreen darkorange darkviolet darksalmon darkmagenta purple pink orange lime gray &
+                 fuchsia coral cyan "
+
+dump        video vis  movie  100 movie.avi    v_color v_color adiam 0.9 zoom 1.9 view 0 90  size 512 512
+dump_modify video backcolor white  boxcolor black
+dump_modify video amap 1 20 sa 1 23 ${colors}
+
+shell "mkdir img"
+shell "rm img/*"
+
+dump        image vis  image  20000 img/selected_*.jpg   v_color v_color adiam 0.9 zoom 1.9 view 0 90  size 512 512
+dump_modify image backcolor white  boxcolor black
+dump_modify image amap 1 20 sa 1 23 ${colors}
+
+dump        image2 all  image  20000 img/all_*.jpg   v_color v_color adiam 0.9 zoom 1.9 view 0 90  size 512 512
+dump_modify image2 backcolor white  boxcolor black
+dump_modify image2 amap 1 200 sa 1 23 ${colors}
+
+
+# Sample observables:
+
+compute bdist all bond/local dist
+compute b2avg all reduce avesq c_bdist
+
+compute g1         all msd com yes
+compute molchunk   all chunk/atom molecule
+compute rgmol      all gyration/chunk molchunk  tensor
+variable avgr2     equal 6*(ave(c_rgmol[1])+ave(c_rgmol[2])+ave(c_rgmol[3]))          #Lammps can not calculate <R^2> directly, but we know that <R^2> = 6 <Rg^2> in 2D.
+variable energy    equal etotal
+
+# output observables
+thermo_style    custom step temp etotal c_b2avg  c_g1[4] v_avgr2
+
+fix out5  all ave/time  1000 1 1000  c_b2avg  v_avgr2    file  data.txt	 title1 "Tidsskridt Bindingslængde <R^2>" 
+
+timestep ${timestep}
+run ${nrun}
+
