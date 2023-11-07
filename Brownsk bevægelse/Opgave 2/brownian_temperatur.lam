@@ -87,7 +87,7 @@ unfix integrator
 #save images
 shell "mkdir img"
 shell "rm img/*"
-dump        img all  image  10000 img/t*.jpg    type type zoom 1.7
+dump        img all  image  100000 img/t*.jpg    type type zoom 1.7
 dump_modify img backcolor white  boxcolor black
 dump_modify img adiam 2 5.0
 dump_modify img adiam 1 1.0
