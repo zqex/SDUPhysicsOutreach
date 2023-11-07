@@ -10,7 +10,7 @@
 ##----------------------------------------------------------------------------------------------------------------------------------
 ##
 
-		# HER KAN I ÆNDRE TEMPERATUREN - "T" EFTER EQUAL SKAL VÆRE ET TAL MELLEM 0 og 100		
+		# HER KAN I ÆNDRE TEMPERATUREN - "T" EFTER EQUAL SKAL VÆRE ET TAL MELLEM 0.1 og 10
 
 		variable temp	equal T
 
@@ -77,7 +77,6 @@ minimize 1e-4 1e-4 1000 1000
 reset_timestep 0
 
 # Here we thermalize the system to simulate at well defined temperature.
-variable temp equal 20.0
 variable trelax equal 1.0
 fix integrator all nve
 fix dynamics   all langevin ${temp} ${temp}  ${trelax} 359283
