@@ -50,7 +50,7 @@ variable input  string "pull_polymers_100chains_30bonds.input"
 variable output string "kraft_data.txt"
 variable xoutp1  string "avg_x_ends_time1.t"
 variable xoutp2  string "kraft_data.txt"
-variable movie  string "moviefx0.1.avi"
+variable movie  string "movie_fx${fx}_T${temp}.avi"
 
 
 #Langevin dynamics, friction is reduced compared to rouse simulation to accelerate dynamics.
