@@ -136,7 +136,7 @@ variable energy    equal etotal
 # output observables
 thermo_style    custom step temp etotal c_b2avg  c_g1[4] v_avgr2
 
-fix out5  all ave/time  1000 1 1000  c_b2avg  v_avgr2    file  data.txt	 title1 "Tidsskridt Bindingslængde <R^2>" 
+fix out5  all ave/time  1000 1 1000  c_b2avg  v_avgr2    file  data.txt	 title1 "#Tidsskridt Bindingslængde <R^2>" 
 
 timestep ${timestep}
 run ${nrun}

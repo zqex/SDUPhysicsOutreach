@@ -129,7 +129,7 @@ variable energy    equal etotal
 compute bdist all bond/local dist
 compute b2avg all reduce avesq c_bdist
 
-fix out ends ave/time 1000 1 1000 c_b2avg  v_energy c_axpos start 20000 file ${output} title1 "Tidsskridt <b^2> Energi <X>"
+fix out ends ave/time 1000 1 1000 c_b2avg  v_energy c_axpos start 20000 file ${output} title1 "#Tidsskridt <b^2> Energi <X>"
 thermo_style    custom step temp etotal   c_axpos
 
 
